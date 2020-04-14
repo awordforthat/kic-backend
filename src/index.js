@@ -6,19 +6,33 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const jwt = require("express-jwt");
 const jwksRsa = require("jwks-rsa");
+const mongoose = require("mongoose");
 
 // define the Express app
 const app = express();
 
-// the database
-const topics = [
-  { id: 0, name: "Spinning", category: "FIBER_ARTS" },
-  { id: 1, name: "Parkour", category: "SPORTS" },
-  { id: 2, name: "Python", category: "COMPUTER_SCIENCE" },
-  { id: 3, name: "C#/Unity", category: "COMPUTER_SCIENCE" },
-  { id: 4, name: "Knitting", category: "FIBER_ARTS" },
-  { id: 5, name: "Woodturning", category: "WOODWORKING" }
-];
+// the real database
+mongoose.Promise = global.Promise;
+mongoose.connect("mongodb://localhost:27017/knowledgeincommon", {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
+
+var categorySchema = new mongoose.Schema({ name: String });
+var Category = mongoose.model("Category", categorySchema);
+
+var topicSchema = new mongoose.Schema({
+  id: Number,
+  name: String,
+  category: String
+});
+var Topic = mongoose.model("Topic", topicSchema);
+
+var userSchema = new mongoose.Schema({
+  id: String,
+  email: String
+});
+var User = mongoose.model("User", userSchema);
 
 // enhance your app security with Helmet
 app.use(helmet());
@@ -32,18 +46,11 @@ app.use(cors());
 // log HTTP requests
 app.use(morgan("combined"));
 
-// retrieve all questions
-app.get("/", (req, res) => {
-  res.send(topics);
-});
+// easy body parsing
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// get a specific question
-app.get("/:id", (req, res) => {
-  const question = topics.filter(q => q.id === parseInt(req.params.id));
-  if (question.length > 1) return res.status(500).send();
-  if (question.length === 0) return res.status(404).send();
-  res.send(question[0]);
-});
+// retrieve all questions
 
 const checkJwt = jwt({
   secret: jwksRsa.expressJwtSecret({
@@ -59,37 +66,94 @@ const checkJwt = jwt({
   algorithms: ["RS256"]
 });
 
-// insert a new question
-app.post("/", checkJwt, (req, res) => {
-  const { title, description } = req.body;
-  const newQuestion = {
-    id: topics.length + 1,
-    title,
-    description,
-    answers: [],
-    author: req.user.name
-  };
-  topics.push(newQuestion);
-  res.status(200).send();
+app.get("/category", (req, res) => {
+  Category.find({})
+    .then(val => {
+      res.send(val);
+    })
+    .catch(err => {
+      console.log(err);
+      res.status(400).send("Unable to retrieve category list");
+    });
+
+  //res.send(cats);
 });
 
-// insert a new answer to a question
-app.post("/answer/:id", checkJwt, (req, res) => {
-  const { answer } = req.body;
+app.get("/category/:name", (req, res) => {
+  console.log(req.params);
+  Topic.find({ category: req.params.name })
+    .then(val => {
+      res.send(val);
+    })
+    .catch(err => {
+      res.send("Unable to retrieve categories");
+    });
+});
 
-  const question = topics.filter(q => q.id === parseInt(req.params.id));
-  if (question.length > 1) return res.status(500).send();
-  if (question.length === 0) return res.status(404).send();
+app.post("/topic", async (req, res) => {
+  var newTopic = new Topic(req.body);
 
-  question[0].answers.push({
-    answer,
-    author: req.user.name
+  // little bit of error protection
+  if (!dataExists(req.body.name) || !dataExists(req.body.category)) {
+    res
+      .status(400)
+      .send({ error: "Argument error - arguments cannot be null" });
+  }
+  if (req.body.name === "") {
+    res
+      .status(400)
+      .send({ error: "Argument error - name may not be empty string" });
+  }
+
+  let result = await Topic.findOne({
+    name: req.body.name,
+    category: req.body.category
+  }).catch(err => {
+    res.send({ error: "Database error" }).catch(reason => {
+      console.log(reason);
+    });
   });
 
-  res.status(200).send();
+  if (result) {
+    res.status(400).send({ error: "Cannot add duplicate topic" });
+  }
+
+  // if the topic doesn't exist in our collection, add it
+  let category = await Category.findOne({ name: req.body.category }).catch(
+    err => {
+      res.send({ error: "Database error" });
+    }
+  );
+
+  if (!category) {
+    let newCat = new Category({ name: req.body.category });
+    newCat.save({ name: req.body.category }).catch(err => {
+      res
+        .status(400)
+        .send("unable to save to database")
+        .catch(err => {
+          console.log("Failed to send error to client");
+        });
+    });
+  }
+
+  // now good to add the topic to the database
+
+  newTopic
+    .save()
+    .then(item => {
+      res.status(200).send("New topic added");
+    })
+    .catch(err => {
+      res.status(400).send("unable to save to database");
+    });
 });
 
 // start the server
 app.listen(8081, () => {
   console.log("listening on port 8081");
 });
+
+function dataExists(data) {
+  return data != null && data != undefined;
+}

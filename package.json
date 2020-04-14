@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+	"start": "nodemon src"
   },
   "keywords": [],
   "author": "",
@@ -16,7 +17,10 @@
     "express-jwt": "^5.3.3",
     "helmet": "^3.22.0",
     "jwks-rsa": "^1.7.0",
-    "mongodb": "^3.5.5",
+    "mongoose": "^5.9.9",
     "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.3"
   }
 }
