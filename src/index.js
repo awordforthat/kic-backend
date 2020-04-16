@@ -29,8 +29,9 @@ var topicSchema = new mongoose.Schema({
 var Topic = mongoose.model("Topic", topicSchema);
 
 var userSchema = new mongoose.Schema({
-  id: String,
-  email: String
+  authToken: String,
+  email: String,
+  userName: String
 });
 var User = mongoose.model("User", userSchema);
 
@@ -80,13 +81,22 @@ app.get("/category", (req, res) => {
 });
 
 app.get("/category/:name", (req, res) => {
-  console.log(req.params);
   Topic.find({ category: req.params.name })
     .then(val => {
       res.send(val);
     })
     .catch(err => {
       res.send("Unable to retrieve categories");
+    });
+});
+
+app.get("/topic", (req, res) => {
+  Topic.find({})
+    .then(result => {
+      res.send(result);
+    })
+    .catch(err => {
+      res.status(400).send("Unable to retrieve topics from the server");
     });
 });
 
@@ -127,7 +137,7 @@ app.post("/topic", async (req, res) => {
 
   if (!category) {
     let newCat = new Category({ name: req.body.category });
-    newCat.save({ name: req.body.category }).catch(err => {
+    newCat.save().catch(err => {
       res
         .status(400)
         .send("unable to save to database")
@@ -146,6 +156,28 @@ app.post("/topic", async (req, res) => {
     })
     .catch(err => {
       res.status(400).send("unable to save to database");
+    });
+});
+
+app.post("/user", (req, res) => {
+  let newUser = new User({
+    authToken: req.body.id,
+    userName: req.body.userName,
+    email: req.body.email
+  });
+  console.log(newUser);
+
+  User.findOne({ authToken: req.body.id })
+    .catch(err => {
+      res.status(400).send("database error");
+      return;
+    })
+    .then(value => {
+      if (!value) {
+        newUser.save().then(item => {
+          res.send("Success!");
+        });
+      }
     });
 });
 
