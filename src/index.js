@@ -159,24 +159,43 @@ app.post("/topic", async (req, res) => {
     });
 });
 
+app.get("/user/:id", (req, res) => {
+  User.findOne({ authToken: req.params.authToken })
+    .then(item => {
+      if (item) {
+        res.send(item);
+      } else {
+        res
+          .status(404)
+          .send("User " + req.params.authToken + " does not exist");
+      }
+    })
+    .catch(() => {
+      res.send(err);
+    });
+});
+
 app.post("/user", (req, res) => {
   let newUser = new User({
-    authToken: req.body.id,
+    authToken: req.body.authToen,
     userName: req.body.userName,
     email: req.body.email
   });
-  console.log(newUser);
 
-  User.findOne({ authToken: req.body.id })
+  User.findOne({ authToken: req.body.authToken })
     .catch(err => {
       res.status(400).send("database error");
       return;
     })
     .then(value => {
       if (!value) {
+        console.log("Brand new user");
         newUser.save().then(item => {
-          res.send("Success!");
+          res.send({ status: 0, user: newUser });
         });
+      } else {
+        console.log("old user, exists");
+        res.send({ status: 1, user: value });
       }
     });
 });
