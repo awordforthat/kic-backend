@@ -33,10 +33,19 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use(passport.initialize());
 
 mongoose.Promise = global.Promise;
-mongoose.connect("mongodb://localhost:27017/knowledgeincommon", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-});
+mongoose
+  .connect(
+    "mongodb+srv://admin:mongoadmin@kicdata-7esya.mongodb.net/test?retryWrites=true&w=majority",
+    {
+      dbName: "knowledge-in-common",
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    }
+  )
+  .then(result => {
+    console.log("Connected!");
+    console.log(result);
+  });
 
 var jwtOptions = {};
 jwtOptions.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
