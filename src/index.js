@@ -11,6 +11,7 @@ var auth = require("./routes/auth");
 var jwt = require("jsonwebtoken");
 var passportJWT = require("passport-jwt");
 var passport = require("passport");
+var cors = require("cors");
 
 var ExtractJwt = passportJWT.ExtractJwt;
 var JwtStrategy = passportJWT.Strategy;
@@ -29,23 +30,29 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
-
 app.use(passport.initialize());
 
+// set up cross origin
+
+app.use(cors());
+app.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
+  next();
+});
+
 mongoose.Promise = global.Promise;
-mongoose
-  .connect(
-    "mongodb+srv://admin:mongoadmin@kicdata-7esya.mongodb.net/test?retryWrites=true&w=majority",
-    {
-      dbName: "knowledge-in-common",
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    }
-  )
-  .then(result => {
-    console.log("Connected!");
-    console.log(result);
-  });
+mongoose.connect(
+  "mongodb+srv://admin:mongoadmin@kicdata-7esya.mongodb.net/test?retryWrites=true&w=majority",
+  {
+    dbName: "knowledge-in-common",
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  }
+);
 
 var jwtOptions = {};
 jwtOptions.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
@@ -63,19 +70,55 @@ var strategy = new JwtStrategy(jwtOptions, function(jwt_payload, next) {
 passport.use(strategy);
 
 app.post("/login", function(req, res) {
-  UserModel.findOne({ name: req.body.name })
+  UserModel.findOne({ email: req.body.email })
     .then(result => {
       if (result.password == req.body.password) {
-        console.log(result._id);
         var payload = { id: result._id };
         var token = jwt.sign(payload, jwtOptions.secretOrKey);
-        res.send({ message: "ok", token: token });
+        res.send({ message: "ok", token: token, user: result });
       } else {
-        res.status(401).json({ message: "passwords did not match" });
+        // passwords did not match
+        res.status(401).json({ message: "login failure" });
       }
     })
     .catch(err => {
+      // user not in database
       res.status(401).json({ message: "user not in database" });
+    });
+});
+
+app.put("/user", function(req, res) {
+  console.log(req.body);
+  UserModel.findOne({
+    email: req.body.email
+  })
+    .then(result => {
+      console.log(result);
+      if (result) {
+        res.status(402).send("user already exists");
+      } else {
+        let newUser = new UserModel({
+          email: req.body.email,
+          password: req.body.password,
+          username: req.body.username
+        });
+
+        newUser
+          .save()
+          .then(result => {
+            var payload = { id: result._id };
+            var token = jwt.sign(payload, jwtOptions.secretOrKey);
+            res
+              .status(200)
+              .send({ message: "ok", token: token, user: newUser });
+          })
+          .catch(err => {
+            res.status(500).send("Unable to create new user");
+          });
+      }
+    })
+    .catch(err => {
+      res.status(500).send("Server error");
     });
 });
 
