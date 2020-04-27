@@ -70,35 +70,40 @@ var strategy = new JwtStrategy(jwtOptions, function(jwt_payload, next) {
 passport.use(strategy);
 
 app.post("/login", function(req, res) {
-  UserModel.findOne({ email: req.body.email })
+  UserModel.findOne({ email: req.body.email.toLowerCase() })
     .then(result => {
       if (result.password == req.body.password) {
         var payload = { id: result._id };
         var token = jwt.sign(payload, jwtOptions.secretOrKey);
-        res.send({ message: "ok", token: token, user: result });
+        res.send({
+          message: "ok",
+          token: token,
+          username: result.username,
+          email: result.email,
+          id: result._id,
+          status: 200
+        });
       } else {
         // passwords did not match
-        res.status(401).json({ message: "login failure" });
+        res.status(401).send({ message: "login failure", status: 401 });
       }
     })
     .catch(err => {
       // user not in database
-      res.status(401).json({ message: "user not in database" });
+      res.status(401).send({ message: "user not in database", status: 401 });
     });
 });
 
 app.put("/user", function(req, res) {
-  console.log(req.body);
   UserModel.findOne({
-    email: req.body.email
+    email: req.body.email.toLowerCase()
   })
     .then(result => {
-      console.log(result);
       if (result) {
-        res.status(402).send("user already exists");
+        res.status(400).send({ status: 400, message: "user already exists" });
       } else {
         let newUser = new UserModel({
-          email: req.body.email,
+          email: req.body.email.toLowerCase(),
           password: req.body.password,
           username: req.body.username
         });
@@ -108,17 +113,24 @@ app.put("/user", function(req, res) {
           .then(result => {
             var payload = { id: result._id };
             var token = jwt.sign(payload, jwtOptions.secretOrKey);
-            res
-              .status(200)
-              .send({ message: "ok", token: token, user: newUser });
+            res.status(200).send({
+              message: "ok",
+              token: token,
+              username: newUser.username,
+              email: newUser.email,
+              id: newUser._id,
+              status: 200
+            });
           })
           .catch(err => {
-            res.status(500).send("Unable to create new user");
+            res
+              .status(500)
+              .send({ message: "Unable to create new user", status: 500 });
           });
       }
     })
     .catch(err => {
-      res.status(500).send("Server error");
+      res.status(500).send({ message: "Server error", status: 500 });
     });
 });
 
@@ -147,6 +159,16 @@ app.use(function(err, req, res, next) {
   // render the error page
   res.status(err.status || 500);
   res.render("error");
+});
+
+// access control
+app.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
+  next();
 });
 
 // start the server
