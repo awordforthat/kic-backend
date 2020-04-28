@@ -5,13 +5,13 @@ var logger = require("morgan");
 var cookieParser = require("cookie-parser");
 var bodyParser = require("body-parser");
 var mongoose = require("mongoose");
-// var index = require("./routes/index");
-// var user = require("./routes/user");
-var auth = require("./routes/auth");
 var jwt = require("jsonwebtoken");
 var passportJWT = require("passport-jwt");
 var passport = require("passport");
 var cors = require("cors");
+var bcrypt = require("bcrypt");
+
+require("./routes/user");
 
 var ExtractJwt = passportJWT.ExtractJwt;
 var JwtStrategy = passportJWT.Strategy;
@@ -33,7 +33,6 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use(passport.initialize());
 
 // set up cross origin
-
 app.use(cors());
 app.use(function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
@@ -72,7 +71,9 @@ passport.use(strategy);
 app.post("/login", function(req, res) {
   UserModel.findOne({ email: req.body.email.toLowerCase() })
     .then(result => {
-      if (result.password == req.body.password) {
+      console.log("Stored password: " + result.password);
+      
+      if (bcrypt.compareSync(req.body.password, result.password)) {
         var payload = { id: result._id };
         var token = jwt.sign(payload, jwtOptions.secretOrKey);
         res.send({
@@ -94,45 +95,13 @@ app.post("/login", function(req, res) {
     });
 });
 
-app.put("/user", function(req, res) {
-  UserModel.findOne({
-    email: req.body.email.toLowerCase()
-  })
-    .then(result => {
-      if (result) {
-        res.status(400).send({ status: 400, message: "user already exists" });
-      } else {
-        let newUser = new UserModel({
-          email: req.body.email.toLowerCase(),
-          password: req.body.password,
-          username: req.body.username
-        });
+app.put("/user", addUser);
 
-        newUser
-          .save()
-          .then(result => {
-            var payload = { id: result._id };
-            var token = jwt.sign(payload, jwtOptions.secretOrKey);
-            res.status(200).send({
-              message: "ok",
-              token: token,
-              username: newUser.username,
-              email: newUser.email,
-              id: newUser._id,
-              status: 200
-            });
-          })
-          .catch(err => {
-            res
-              .status(500)
-              .send({ message: "Unable to create new user", status: 500 });
-          });
-      }
-    })
-    .catch(err => {
-      res.status(500).send({ message: "Server error", status: 500 });
-    });
-});
+app.get(
+  "/user",
+  passport.authenticate("jwt", { session: false }),
+  getUserProfile
+);
 
 app.get("/secret", passport.authenticate("jwt", { session: false }), function(
   req,
@@ -140,8 +109,6 @@ app.get("/secret", passport.authenticate("jwt", { session: false }), function(
 ) {
   res.json("Success! You can not see this without a token");
 });
-
-// app.use("/auth", auth);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -159,16 +126,6 @@ app.use(function(err, req, res, next) {
   // render the error page
   res.status(err.status || 500);
   res.render("error");
-});
-
-// access control
-app.use(function(req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept"
-  );
-  next();
 });
 
 // start the server
