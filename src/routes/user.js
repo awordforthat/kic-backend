@@ -1,8 +1,7 @@
-var express = require("express");
-var router = express.Router();
 var jwt = require("jsonwebtoken");
 var passportJWT = require("passport-jwt");
 var bcrypt = require("bcrypt");
+var schemas = require("../schemas");
 
 var ExtractJwt = passportJWT.ExtractJwt;
 
@@ -10,36 +9,10 @@ var jwtOptions = {};
 jwtOptions.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
 jwtOptions.secretOrKey = "tasmanianDevil";
 
-/* POST user profile.*/
-router.post("/user", (req, res) => {
-  let newUser = new User({
-    authToken: req.body.authToen,
-    userName: req.body.userName,
-    email: req.body.email
-  });
-
-  User.findOne({ authToken: req.body.authToken })
-    .catch(err => {
-      res.status(400).send("database error");
-      return;
-    })
-    .then(value => {
-      if (!value) {
-        console.log("Brand new user");
-        newUser.save().then(item => {
-          res.send({ status: 0, user: newUser });
-        });
-      } else {
-        console.log("old user, exists");
-        res.send({ status: 1, user: value });
-      }
-    });
-});
-
 /* GET user profile.*/
 getUserProfile = (req, res) => {
   console.log("Getting user profile...");
-  UserModel.findOne({ authToken: req.body.authToken })
+  schemas.UserModel.findOne({ authToken: req.body.authToken })
     .then(value => {
       if (!value) {
         console.log("no data found");
@@ -63,7 +36,7 @@ getUserProfile = (req, res) => {
 
 /* PUT user profile.*/
 addUser = (req, res) => {
-  UserModel.findOne({
+  schemas.UserModel.findOne({
     email: req.body.email.toLowerCase()
   })
     .then(result => {
@@ -104,5 +77,4 @@ addUser = (req, res) => {
       res.status(500).send({ message: "Server error", status: 500 });
     });
 };
-
-module.exports = addUser;
+exports.addUser = addUser;

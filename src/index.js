@@ -11,7 +11,9 @@ var passport = require("passport");
 var cors = require("cors");
 var bcrypt = require("bcrypt");
 
-require("./routes/user");
+var userRoutes = require("./routes/user");
+var topicRoutes = require("./routes/topic");
+var schemas = require("./schemas");
 
 var ExtractJwt = passportJWT.ExtractJwt;
 var JwtStrategy = passportJWT.Strategy;
@@ -58,7 +60,7 @@ jwtOptions.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
 jwtOptions.secretOrKey = "tasmanianDevil";
 
 var strategy = new JwtStrategy(jwtOptions, function(jwt_payload, next) {
-  UserModel.findOne({ _id: jwt_payload.id })
+  schemas.UserModel.findOne({ _id: jwt_payload.id })
     .then(result => {
       next(null, result);
     })
@@ -69,10 +71,10 @@ var strategy = new JwtStrategy(jwtOptions, function(jwt_payload, next) {
 passport.use(strategy);
 
 app.post("/login", function(req, res) {
-  UserModel.findOne({ email: req.body.email.toLowerCase() })
+  schemas.UserModel.findOne({ email: req.body.email.toLowerCase() })
     .then(result => {
       console.log("Stored password: " + result.password);
-      
+
       if (bcrypt.compareSync(req.body.password, result.password)) {
         var payload = { id: result._id };
         var token = jwt.sign(payload, jwtOptions.secretOrKey);
@@ -95,13 +97,16 @@ app.post("/login", function(req, res) {
     });
 });
 
-app.put("/user", addUser);
+app.put("/user", userRoutes.addUser);
+app.put("/topic", topicRoutes.addTopic);
 
 app.get(
   "/user",
   passport.authenticate("jwt", { session: false }),
   getUserProfile
 );
+
+app.get("/topic", topicRoutes.getTopics);
 
 app.get("/secret", passport.authenticate("jwt", { session: false }), function(
   req,
