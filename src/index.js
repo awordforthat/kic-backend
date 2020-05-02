@@ -73,8 +73,6 @@ passport.use(strategy);
 app.post("/login", function(req, res) {
   schemas.UserModel.findOne({ email: req.body.email.toLowerCase() })
     .then(result => {
-      console.log("Stored password: " + result.password);
-
       if (bcrypt.compareSync(req.body.password, result.password)) {
         var payload = { id: result._id };
         var token = jwt.sign(payload, jwtOptions.secretOrKey);
@@ -97,16 +95,18 @@ app.post("/login", function(req, res) {
     });
 });
 
-app.put("/user", userRoutes.addUser);
-app.put("/topic", topicRoutes.addTopic);
 
+app.put("/topic", topicRoutes.addTopic);
+app.get("/topic", topicRoutes.getTopics);
+
+app.put("/user", userRoutes.addUser);
 app.get(
   "/user",
   passport.authenticate("jwt", { session: false }),
   getUserProfile
 );
+app.post("/user/topics", userRoutes.addUserTopics);
 
-app.get("/topic", topicRoutes.getTopics);
 
 app.get("/secret", passport.authenticate("jwt", { session: false }), function(
   req,

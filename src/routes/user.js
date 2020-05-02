@@ -11,20 +11,16 @@ jwtOptions.secretOrKey = "tasmanianDevil";
 
 /* GET user profile.*/
 getUserProfile = (req, res) => {
-  console.log("Getting user profile...");
-  schemas.UserModel.findOne({ authToken: req.body.authToken })
+  schemas.UserModel.findOne({ id: req.body.id })
     .then(value => {
       if (!value) {
-        console.log("no data found");
-        res.send({ message: "No data found", data: [] });
+        res.status(404).send({ message: "No data found", data: [] });
       } else {
-        console.log("found some data");
+        noPwUser = Object.create(value);
+        noPwUser.password = "HIDE";
         res.send({
-          message: "Found some data, boss",
-          data: {
-            teach: ["Gardening", "Cooking", "Skateboarding"],
-            learn: ["Whittling", "Swimming", "Forestry"]
-          }
+          message: "Success",
+          data: noPwUser
         });
       }
     })
@@ -44,7 +40,6 @@ addUser = (req, res) => {
         res.status(400).send({ status: 400, message: "user already exists" });
       } else {
         const hash = bcrypt.hashSync(req.body.password, 10);
-        console.log("Saving pw as: " + hash);
         let newUser = new UserModel({
           email: req.body.email.toLowerCase(),
           password: hash,
@@ -56,13 +51,13 @@ addUser = (req, res) => {
           .then(result => {
             var payload = { id: result._id };
             var token = jwt.sign(payload, jwtOptions.secretOrKey);
-            res.status(200).send({
+            res.status(201).send({
               message: "ok",
               token: token,
               username: newUser.username,
               email: newUser.email,
               id: newUser._id,
-              status: 200
+              status: 201
             });
           })
           .catch(err => {
@@ -77,4 +72,64 @@ addUser = (req, res) => {
       res.status(500).send({ message: "Server error", status: 500 });
     });
 };
+
+/* PUT multiple topics */
+
+addUserTopics = (req, res) => {
+  if (!req.body.email) {
+    res
+      .status(400)
+      .send({ message: "You  must provide a user email in the request body" });
+  }
+  schemas.UserModel.findOne({
+    email: req.body.email.toLowerCase()
+  })
+    .then(result => {
+      let topics = [];
+      try {
+        topics = JSON.parse(req.body.topics);
+      } catch (err) {
+        res.status(400).send({ message: "Invalid JSON in request body" });
+        return;
+      }
+
+      let userData = [];
+      let mode = "";
+      if (req.body.topicSet.toLowerCase() === "teach") {
+        userData = JSON.parse(JSON.stringify(result.teach));
+        mode = "teach";
+      } else if (req.body.topicSet.toLowerCase() === "learn") {
+        userData = JSON.parse(JSON.stringify(result.learn));
+        mode = "learn";
+      } else {
+        res.status(400).send({
+          message: "Unrecognized topicSet. Expect either 'teach' or 'learn'."
+        });
+        return;
+      }
+
+      // add to existing list, making sure values are unique
+      let newTopics = userData;
+      topics.forEach(val => {
+        if (userData.indexOf(val.toLowerCase()) === -1) {
+          newTopics.push(val.toLowerCase());
+        }
+      });
+      result[mode] = newTopics;
+
+      result
+        .save()
+        .then(res.status(200).send(newTopics))
+        .catch(err => {
+          res.status(500).send({ message: "Unable to save to database" });
+        });
+    })
+    .catch(err => {
+      console.log(err);
+      res
+        .status(500)
+        .send({ message: "Unable to retrieve user from database" });
+    });
+};
 exports.addUser = addUser;
+exports.addUserTopics = addUserTopics;
