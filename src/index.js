@@ -95,8 +95,8 @@ app.post("/login", function(req, res) {
     });
 });
 
-
 app.put("/topic", topicRoutes.addTopic);
+app.put("/topic/batch", topicRoutes.addTopics);
 app.get("/topic", topicRoutes.getTopics);
 
 app.put("/user", userRoutes.addUser);
@@ -106,7 +106,6 @@ app.get(
   getUserProfile
 );
 app.post("/user/topics", userRoutes.addUserTopics);
-
 
 app.get("/secret", passport.authenticate("jwt", { session: false }), function(
   req,
