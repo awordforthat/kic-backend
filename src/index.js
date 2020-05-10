@@ -73,6 +73,8 @@ passport.use(strategy);
 app.post("/login", function(req, res) {
   schemas.UserModel.findOne({ email: req.body.email.toLowerCase() })
     .then(result => {
+      console.log(req.body.email);
+      console.log(result);
       if (bcrypt.compareSync(req.body.password, result.password)) {
         var payload = { id: result._id };
         var token = jwt.sign(payload, jwtOptions.secretOrKey);

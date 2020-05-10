@@ -11,7 +11,13 @@ jwtOptions.secretOrKey = "tasmanianDevil";
 
 /* GET user profile.*/
 getUserProfile = (req, res) => {
-  schemas.UserModel.findOne({ id: req.body.id })
+  if (!req.query.id || req.query.id === "") {
+    res
+      .status(400)
+      .send({ message: "You must provide an id with your profile request" });
+  }
+  schemas.UserModel.findOne({ _id: req.query.id })
+
     .then(value => {
       if (!value) {
         res.status(404).send({ message: "No data found", data: [] });
@@ -26,7 +32,7 @@ getUserProfile = (req, res) => {
     })
     .catch(err => {
       console.log("Got an error");
-      res.status(400).send({ message: "Could not find resource", status: 400 });
+      res.status(404).send({ message: "Could not find resource", status: 404 });
     });
 };
 

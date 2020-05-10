@@ -51,7 +51,6 @@ addTopics = (req, res) => {
   const addedTopics = [];
   const errorTopics = [];
   const noOpTopics = [];
-  console.log("About to start for loop");
 
   topics.forEach((topic, index) => {
     console.log(topic);
@@ -61,23 +60,49 @@ addTopics = (req, res) => {
       if (result) {
         console.log("Topic " + topic + " already in database");
         noOpTopics.push(topic);
+        if (index === topics.length - 1) {
+          res.send({
+            message: "See data for results",
+            data: {
+              added: addedTopics,
+              errors: errorTopics,
+              noOps: noOpTopics
+            }
+          });
+        }
       } else {
         new TopicModel({ name: topic.toLowerCase() })
           .save()
           .then(result => {
             addedTopics.push(topic);
             console.log("topic saved successfully");
+            if (index === topics.length - 1) {
+              res.send({
+                message: "See data for results",
+                data: {
+                  added: addedTopics,
+                  errors: errorTopics,
+                  noOps: noOpTopics
+                }
+              });
+            }
           })
           .catch(err => {
             errorTopics.push(topic);
             console.log("Failed to save topic " + topic);
+            if (index === topics.length - 1) {
+              res.send({
+                message: "See data for results",
+                data: {
+                  added: addedTopics,
+                  errors: errorTopics,
+                  noOps: noOpTopics
+                }
+              });
+            }
           });
       }
     });
-  });
-  res.send({
-    message: "See data for results",
-    data: { added: addedTopics, errors: errorTopics, noOps: noOpTopics }
   });
 };
 
