@@ -1,25 +1,33 @@
 var schemas = require("../schemas");
 
+/* PUT route */
 addTopic = (req, res) => {
+  if (!req.body.topic) {
+    res
+      .status(400)
+      .send({ message: "Body parameter 'topic' must be provided" });
+  }
+
   schemas.TopicModel.findOne({
     name: req.body.topic
   })
     .then(result => {
-      console.log("Result: " + result);
       if (result) {
         res
           .status(200)
           .send({ message: "Topic already in database - this is a no-op" });
       } else {
-        let newTopic = new TopicModel({ name: req.body.topic });
+        let newTopic = new TopicModel({
+          name: req.body.topic,
+          teachable: req.body.teachable.toLowerCase() === "true",
+          learnable: req.body.learnable.toLowerCase() === "true"
+        });
         newTopic
           .save()
           .then(result => {
-            console.log("saved successfully");
             res.status(200).send({ message: "ok", data: result });
           })
           .catch(err => {
-            console.log("failed to save topic");
             res.status(400).send({ message: "failed to save topic" });
           });
       }
@@ -31,6 +39,7 @@ addTopic = (req, res) => {
     });
 };
 
+/* PUT route */
 addTopics = (req, res) => {
   if (!req.body.topics) {
     res.status(400).send({
@@ -38,7 +47,6 @@ addTopics = (req, res) => {
     });
   }
 
-  console.log(req.body.topics);
   let topics;
 
   try {
@@ -53,12 +61,11 @@ addTopics = (req, res) => {
   const noOpTopics = [];
 
   topics.forEach((topic, index) => {
-    console.log(topic);
+    console.log(topic.name);
     schemas.TopicModel.findOne({
-      name: topic
+      name: topic.name
     }).then(result => {
       if (result) {
-        console.log("Topic " + topic + " already in database");
         noOpTopics.push(topic);
         if (index === topics.length - 1) {
           res.send({
@@ -71,11 +78,14 @@ addTopics = (req, res) => {
           });
         }
       } else {
-        new TopicModel({ name: topic.toLowerCase() })
+        new TopicModel({
+          name: topic.name.toLowerCase(),
+          teachable: topic.teachable,
+          learnable: topic.learnable
+        })
           .save()
           .then(result => {
             addedTopics.push(topic);
-            console.log("topic saved successfully");
             if (index === topics.length - 1) {
               res.send({
                 message: "See data for results",
@@ -89,7 +99,6 @@ addTopics = (req, res) => {
           })
           .catch(err => {
             errorTopics.push(topic);
-            console.log("Failed to save topic " + topic);
             if (index === topics.length - 1) {
               res.send({
                 message: "See data for results",
@@ -106,17 +115,37 @@ addTopics = (req, res) => {
   });
 };
 
+/* GET route */
+
+/**
+ * Provide mode = "teach" or mode = "learn" to get those subsets.
+ * Omitting the mode parameter will return all topics.
+ */
 getTopics = (req, res) => {
-  schemas.TopicModel.find({}, null, { sort: { name: 1 } })
-    .then(result => {
+  if (req.query.mode == "teach") {
+    schemas.TopicModel.find({ teachable: true }, null, {
+      sort: { name: 1 }
+    }).then(result => {
       res.status(200).send({ message: "ok", data: result });
-    })
-    .catch(err => {
-      res.status(400).send({
-        message: "failed to get results (or no values exist in database)",
-        data: []
-      });
     });
+  } else if (req.query.mode === "learn") {
+    schemas.TopicModel.find({ learnable: true }, null, {
+      sort: { name: 1 }
+    }).then(result => {
+      res.status(200).send({ message: "ok", data: result });
+    });
+  } else {
+    schemas.TopicModel.find({}, null, { sort: { name: 1 } })
+      .then(result => {
+        res.status(200).send({ message: "ok", data: result });
+      })
+      .catch(err => {
+        res.status(400).send({
+          message: "failed to get results (or no values exist in database)",
+          data: []
+        });
+      });
+  }
 };
 
 exports.addTopic = addTopic;

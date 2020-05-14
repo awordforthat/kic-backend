@@ -13,6 +13,7 @@ var bcrypt = require("bcrypt");
 
 var userRoutes = require("./routes/user");
 var topicRoutes = require("./routes/topic");
+var connectionRoutes = require("./routes/connect");
 var schemas = require("./schemas");
 
 var ExtractJwt = passportJWT.ExtractJwt;
@@ -109,12 +110,7 @@ app.get(
 );
 app.post("/user/topics", userRoutes.addUserTopics);
 
-app.get("/secret", passport.authenticate("jwt", { session: false }), function(
-  req,
-  res
-) {
-  res.json("Success! You can not see this without a token");
-});
+app.post("/connect", connectionRoutes.getConnections);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

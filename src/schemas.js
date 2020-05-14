@@ -9,8 +9,11 @@ var userSchema = new mongoose.Schema({
 UserModel = mongoose.model("User", userSchema);
 
 var topicSchema = new mongoose.Schema({
-  name: { type: String, required: true }
+  name: { type: String, required: true },
+  teachable: { type: Boolean },
+  learnable: { type: Boolean }
 });
+
 TopicModel = mongoose.model("Topic", topicSchema);
 exports.UserModel = UserModel;
 exports.TopicModel = TopicModel;
