@@ -148,6 +148,28 @@ getTopics = (req, res) => {
   }
 };
 
+updateTopics = (req, res) => {
+  schemas.TopicModel.find({})
+    .then(result => {
+      result.forEach((topic, index) => {
+        const learn = Math.floor(Math.random() * 10) % 2 === 0;
+        const teach = Math.floor(Math.random() * 10) % 2 === 0;
+        schemas.TopicModel.updateOne(
+          { name: topic.name },
+          { learnable: learn, teachable: teach }
+        ).then(topicResult => {
+          if (index == result.length - 1) {
+            res.send("ok!");
+          }
+        });
+      });
+    })
+    .catch(err => {
+      res.send(err);
+    });
+};
+
 exports.addTopic = addTopic;
 exports.addTopics = addTopics;
 exports.getTopics = getTopics;
+exports.updateTopics = updateTopics;
