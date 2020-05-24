@@ -1,15 +1,35 @@
-p Hi #{name},
-p We've found you a match! #{requesterName} is interested in #{oppMode}ing #{topic}.
-p
-p Here's how #{requesterName} ranks themselves at #{topic}: #{skillLevel}
-p
-p This is what they're interested in:
-p #{wantToKnow}
-p
-p And this is what they thought you should know about them:
-p #{anythingElse}
-p
-p If you think this is a good fit, CLICK HERE to make the match!
-p If you'd rather pass, LET US KNOW that it didn't work out. 
-p 
-p Thanks for participating in Knowledge in Common!
+html
+	head
+		<meta charset="utf-8"/>
+		title Knowledge in Common Match
+
+		script
+			include script.js
+	
+	<style type="text/css">
+	
+	</style>
+
+body
+	div
+		h1 Match Found! 
+		p Hi #{name}
+		p We've found you a match! #{requesterName} is interested in #{mode}ing #{topic}.
+		p
+		p Here's how #{requesterName} ranks themselves at #{topic}: #{skillLevel}
+		p
+		p This is #{backgroundPhrase} #{topic}:
+		p #{wantToKnow}
+		p
+		p And this is what they thought you should know about them:
+		p #{anythingElse}
+		p
+		div
+			p If you think this is a good fit, <button onClick="reply('#{matchId}', true)">CONFIRM</button> the match, and we'll get the ball rolling.
+			p If you'd rather pass, <button onClick="reply('#{matchId}')">DECLINE</button>, and we'll let #{requesterName} know that it didn't work out.
+			
+		
+		div Thanks for participating in Knowledge in Common!
+		
+	
+
