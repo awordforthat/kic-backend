@@ -1,6 +1,21 @@
 var schemas = require("../schemas");
 var nodemailer = require("nodemailer");
 var Email = require("email-templates");
+const CONFIG = {
+  serverUrl: "http://192.168.1.122:8081/"
+};
+
+var smtpConfig = {
+  host: "mail.privateemail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: "hello@knowledgeincommon.com",
+    pass: "RM#rGE11yLc@"
+  }
+};
+
+const sendEmails = false;
 
 /* POST request for connections */
 
@@ -86,7 +101,7 @@ requestMatch = (req, res) => {
 
   // get request user
   UserModel.findOne({
-    _id: req.body.requesterId
+    _id: req.body.requester
   })
     .then(result => {
       requestingUser = result;
@@ -96,92 +111,214 @@ requestMatch = (req, res) => {
           matchUser = result;
         })
         .then(() => {
-          // we should have everybody here. Now craft the email
-          const Email = require("email-templates");
-
-          const email = new Email({
-            message: {
-              from: "hello@knowledgeincommon.com"
-            },
-            // uncomment below to send emails in development/test env:
-            //send: true,
-            transport: transporter
+          // first create the match record so the email response has something to update
+          let newMatch = new MatchModel({
+            topic: req.body.topic,
+            requester: requestingUser._id,
+            serverUrl: CONFIG.serverUrl + "connect/", //"http://192.168.1.122:8081/connect/"
+            teacher:
+              req.body.mode.toLowerCase() == "teach"
+                ? requestingUser._id
+                : matchUser._id,
+            learner:
+              req.body.mode.toLowerCase() == "learn"
+                ? requestingUser._id
+                : matchUser._id
           });
 
-          email
-            .send({
-              template: "matchRequest",
+          newMatch.save().then(result => {
+            // we should have everybody here. Now craft the email
+
+            const email = new Email({
               message: {
-                to: "emilywcharles@gmail.com"
+                from: "hello@knowledgeincommon.com"
               },
-              locals: {
-                name: matchUser.username ? matchUser.username : " there",
-                requesterName: requestingUser.username
-                  ? requestingUser.username
-                  : "A Knowledge in Common user",
-                mode: req.body.mode.toLowerCase(),
-                oppMode: req.body.mode === "LEARN" ? "teach" : "learn",
-                topic: req.body.topic,
-                wantToKnow: req.body.wantToKnow,
-                skillLevel: req.body.skillLevel,
-                anythingElse: req.body.anythingElse
-              }
-            })
-            .then(result => {
-              res.send(result);
-            })
-            .catch(console.error);
+              send: sendEmails,
+              transport: transporter
+            });
+            email
+              .send({
+                template: "matchRequest",
+                message: {
+                  to: "emilywcharles@gmail.com"
+                },
+                locals: {
+                  name: matchUser.username ? matchUser.username : " there",
+                  matchId: result._id,
+                  requesterName: requestingUser.username
+                    ? requestingUser.username
+                    : "A Knowledge in Common user",
+                  mode: req.body.mode.toLowerCase(),
+                  oppMode:
+                    req.body.mode.toLowerCase() == "learn" ? "teach" : "learn",
+                  topic: req.body.topic,
+                  wantToKnow: req.body.wantToKnow,
+                  skillLevel: req.body.skillLevel,
+                  anythingElse: req.body.anythingElse,
+                  backgroundPhrase:
+                    req.body.mode.toLowerCase() == "teach"
+                      ? " their background in "
+                      : " what they want to know about "
+                }
+              })
+              .then(result => {
+                res.send(result);
+              })
+              .catch(err => {
+                console.log(err);
+              });
+          });
         });
     })
     .catch(err => {
       console.log(err);
     });
-
-  // craft message to match based on mode, topic, and notes
-
-  // send email
-
-  // return results
-  res.send("ok!");
 };
 
-testEmail = (req, res) => {
-  var smtpConfig = {
-    host: "mail.privateemail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      user: "hello@knowledgeincommon.com",
-      pass: "RM#rGE11yLc@"
-    }
-  };
+confirmMatch = (req, res) => {
+  console.log(req.body.matchId);
+  MatchModel.findOneAndUpdate({ _id: req.body.matchId }, { success: true })
+    .then(matchResult => {
+      console.log(matchResult);
+      // TODO: send connection email to both requester and target connecting them
 
-  var transporter = nodemailer.createTransport(smtpConfig);
+      let requestingUser;
+      let targetUser;
+      var transporter = nodemailer.createTransport(smtpConfig);
+      let mode;
 
-  // transporter.verify(function(error, success) {
-  //   if (error) {
-  //     console.log(error);
-  //   } else {
-  //     console.log("Server is ready to take our messages");
-  //   }
-  // });
+      UserModel.findOne({ _id: matchResult.requester }).then(reqUserResult => {
+        requestingUser = reqUserResult;
+        console.log(requestingUser);
+        let targetUserId;
+        if (req.body.requester === req.body.learner) {
+          // the target is the teacher
+          targetUserId = matchResult.teacher;
+          mode = "LEARN";
+        } else {
+          // target is the learner
+          targetUserId = req.body.learner;
+          mode = "TEACH";
+        }
+        UserModel.findOne({ _id: targetUserId }).then(targetUserResult => {
+          targetUser = targetUserResult;
 
-  var mailData = {
-    from: "hello@knowledgeincommon.com",
-    to: "emily.w.charles@gmail.com",
-    subject: "Hello Bear",
-    text: "Bear bear bear",
-    html: "<div><i>Bear</i> <b>bear</b> bear</div>"
-  };
-  transporter.sendMail(mailData, function(error, info) {
-    if (error) {
-      res.send(error);
-    } else {
-      res.send(info);
-    }
-  });
+          // now we have everyone. send emails!
+
+          // first to the requester
+          const email = new Email({
+            message: {
+              from: "hello@knowledgeincommon.com"
+            },
+            send: sendEmails,
+            transport: transporter
+          });
+          email
+            .send({
+              template: "matchConfirm-requester",
+              message: {
+                to: requestingUser.email
+              },
+              locals: {
+                name: requestingUser.username
+                  ? requestingUser.username
+                  : "there",
+                matchName: targetUser.username
+                  ? targetUser.username
+                  : "another user",
+                mode: mode.toLowerCase(),
+                topic: matchResult.topic,
+                contactInfo: targetUser.email
+              }
+            })
+            .finally(() => {
+              // then to the target
+              const email = new Email({
+                message: {
+                  from: "hello@knowledgeincommon.com"
+                },
+
+                send: sendEmails,
+                transport: transporter
+              });
+
+              email
+                .send({
+                  template: "matchConfirm-target",
+                  message: {
+                    to: targetUser.email
+                  },
+                  locals: {
+                    requesterEmail: requestingUser.email,
+                    topic: matchResult.topic,
+                    matchName: requestingUser.username
+                      ? requestingUser.username
+                      : requestingUser.email
+                  }
+                })
+                .catch(err => {
+                  console.log("Failed to send email");
+                  res.status(400).send(err);
+                })
+                .finally(() => {
+                  res.send({ message: "Emails sent successfully" });
+                });
+            });
+        });
+      });
+    })
+
+    .catch(err => {
+      console.log(err);
+      res.status(400).send({
+        message: "Could not find match with id {}".format(req.body.matchId)
+      });
+    });
+};
+
+denyMatch = (req, res) => {
+  MatchModel.findOneAndUpdate({ _id: req.body.matchId }, { success: false })
+    .then(matchResult => {
+      UserModel.findOne({ _id: matchResult.requester })
+        .then(requesterResult => {
+          var transporter = nodemailer.createTransport(smtpConfig);
+          const email = new Email({
+            message: {
+              from: "hello@knowledgeincommon.com"
+            },
+            send: sendEmails,
+            transport: transporter
+          });
+
+          email
+            .send({
+              template: "matchDeny",
+              message: {
+                to: requesterResult.email
+              },
+              locals: {
+                topic: matchResult.topic
+              }
+            })
+            .then(result => {
+              res.send(result);
+            })
+            .catch(res.status(400).send({ message: "Email failed to send" }));
+        })
+        .catch(err => {
+          res.status(400).send({
+            message: "Unable to find user {}".format(matchResult.requester)
+          });
+        });
+    })
+    .catch(err => {
+      res.status(400).send({
+        message: "Unable to look up match {}".format(req.body.matchId)
+      });
+    });
 };
 
 exports.getConnections = getConnections;
 exports.requestMatch = requestMatch;
-exports.testEmail = testEmail;
+exports.confirmMatch = confirmMatch;
+exports.denyMatch = denyMatch;

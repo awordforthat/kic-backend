@@ -79,6 +79,24 @@ addUser = (req, res) => {
     });
 };
 
+patchUserProfile = (req, res) => {
+  schemas.UserModel.findOneAndUpdate(
+    {
+      _id: req.params.userId
+    },
+    req.body,
+    {
+      new: true
+    }
+  )
+    .then(result => {
+      res.send(result);
+    })
+    .catch(err => {
+      res.status(400).send({ message: "unable to patch user", req });
+    });
+};
+
 /* PUT multiple topics */
 
 addUserTopics = (req, res) => {
@@ -244,3 +262,4 @@ addDebugUsers = (req, res) => {
 exports.addDebugUsers = addDebugUsers;
 exports.addUser = addUser;
 exports.addUserTopics = addUserTopics;
+exports.patchUserProfile = patchUserProfile;

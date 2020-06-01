@@ -1,8 +1,8 @@
-function reply(id, success) {
+function reply(id, baseUrl, success) {
   console.log(id);
   const url = success ? "confirm" : "deny";
   var req = new XMLHttpRequest();
-  req.open("POST", "http://192.168.1.122:8081/connect/" + url);
+  req.open("POST", baseUrl + url);
   req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
   req.setRequestHeader("X-Requested-With", "XMLHttpRequest");
   req.onreadystatechange = response;

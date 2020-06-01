@@ -1,1 +1,18 @@
-= `Hello, ${name}. This is example text message. Thanks for reading!`
+Match Found! 
+		Hi ${name},
+= We've found you a match! ${requesterName} is interested in ${mode}ing ${topic}. Please take a look | at their information below and decide if this is a connection you want to make. 
+		
+=		Here's how ${requesterName} ranks themselves at ${topic}: ${skillLevel}
+		
+= This is ${backgroundPhrase} ${topic}:
+ 		${wantToKnow}
+		
+		And this is what they thought you should know about them:
+		${anythingElse}
+		
+		
+			If you think this is a good fit, <button onClick="reply('${matchId}', true)">CONFIRM</button> the match, and we'll get the ball rolling.
+=			If you'd rather pass, <button onClick="reply('${matchId}')">DECLINE</button>, and we'll let ${requesterName} know that it didn't work out.
+			
+		
+		Thanks for participating in Knowledge in Common!`

@@ -108,13 +108,18 @@ app.get(
   passport.authenticate("jwt", { session: false }),
   getUserProfile
 );
+app.patch(
+  "/user/:userId",
+  passport.authenticate("jwt", { session: false }),
+  patchUserProfile
+);
 app.post("/user/topics", userRoutes.addUserTopics);
 
-// TODO add authentication on both these routes
+// TODO add authentication on /connect and /connect/request
 app.post("/connect", connectionRoutes.getConnections);
-app.post("/requestMatch", connectionRoutes.requestMatch);
-
-app.post("/testEmail", connectionRoutes.testEmail);
+app.post("/connect/request", connectionRoutes.requestMatch);
+app.post("/connect/confirm", connectionRoutes.confirmMatch);
+app.post("/connect/deny", connectionRoutes.denyMatch);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

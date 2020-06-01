@@ -25,8 +25,8 @@ body
 		p #{anythingElse}
 		p
 		div
-			p If you think this is a good fit, <button onClick="reply('#{matchId}', true)">CONFIRM</button> the match, and we'll get the ball rolling.
-			p If you'd rather pass, <button onClick="reply('#{matchId}')">DECLINE</button>, and we'll let #{requesterName} know that it didn't work out.
+			p If you think this is a good fit, <button onClick="reply('#{matchId}, #{serverUrl}', true)">CONFIRM</button> the match, and we'll get the ball rolling.
+			p If you'd rather pass, <button onClick="reply('#{matchId}, #serverUrl')">DECLINE</button>, and we'll let #{requesterName} know that it didn't work out.
 			
 		
 		div Thanks for participating in Knowledge in Common!
