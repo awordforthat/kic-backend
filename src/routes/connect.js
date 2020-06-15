@@ -73,7 +73,7 @@ getConnections = (req, res) => {
                 })
         };
       });
-      res.send({ users: matches });
+      res.send(matches);
     })
     .catch(err => {
       console.log(err);
@@ -99,97 +99,156 @@ requestMatch = (req, res) => {
 
   // this would be a lot nicer if it used async/await
 
-  // get request user
-  UserModel.findOne({
-    _id: req.body.requester
-  })
+  // get both users
+  UserModel.find({
+    $or: [{ _id: req.body.requester }, { _id: req.body.matchId }]
+  }) // TODO update this method so you can't create two matches with teacher, learner, and topic identical
+
     .then(result => {
-      requestingUser = result;
-      // now find match user
-      UserModel.findOne({ _id: req.body.matchId })
-        .then(result => {
-          matchUser = result;
-        })
-        .then(() => {
-          // first create the match record so the email response has something to update
-          let newMatch = new MatchModel({
-            topic: req.body.topic,
-            requester: requestingUser._id,
-            serverUrl: CONFIG.serverUrl + "connect/", //"http://192.168.1.122:8081/connect/"
-            teacher:
-              req.body.mode.toLowerCase() == "teach"
-                ? requestingUser._id
-                : matchUser._id,
-            learner:
-              req.body.mode.toLowerCase() == "learn"
-                ? requestingUser._id
-                : matchUser._id
-          });
+      if (result.length !== 2) {
+        res.send(500);
+        return;
+      }
+      if (result[0]._id == req.body.requester) {
+        requestingUser = result[0];
+        matchUser = result[1];
+      } else {
+        requestingUser = result[1];
+        matchUser = result[0];
+      }
 
-          newMatch.save().then(result => {
-            // we should have everybody here. Now craft the email
-
-            const email = new Email({
-              message: {
-                from: "hello@knowledgeincommon.com"
-              },
-              send: sendEmails,
-              transport: transporter
-            });
-            email
-              .send({
-                template: "matchRequest",
-                message: {
-                  to: "emilywcharles@gmail.com"
-                },
-                locals: {
-                  name: matchUser.username ? matchUser.username : " there",
-                  matchId: result._id,
-                  requesterName: requestingUser.username
-                    ? requestingUser.username
-                    : "A Knowledge in Common user",
-                  mode: req.body.mode.toLowerCase(),
-                  oppMode:
-                    req.body.mode.toLowerCase() == "learn" ? "teach" : "learn",
-                  topic: req.body.topic,
-                  wantToKnow: req.body.wantToKnow,
-                  skillLevel: req.body.skillLevel,
-                  anythingElse: req.body.anythingElse,
-                  backgroundPhrase:
-                    req.body.mode.toLowerCase() == "teach"
-                      ? " their background in "
-                      : " what they want to know about "
-                }
-              })
-              .then(result => {
-                res.send(result);
-              })
-              .catch(err => {
-                console.log(err);
-              });
+      // check that this requester doesn't have an open request with this partner + topic already
+      requestingUser.pending.forEach(match => {
+        reject = false;
+        if (req.body.mode.toLowerCase() == "learn") {
+          if (
+            match.teacher == req.body.matchId &&
+            match.topic == req.body.topic
+          ) {
+            reject = true;
+          }
+        } else {
+          if (
+            match.learner == req.body.matchId &&
+            match.topic == req.body.topic
+          ) {
+            reject = true;
+          }
+        }
+        if (reject) {
+          res.status(400).send({
+            message: "Match exists already"
           });
+          return;
+        }
+      });
+
+      // check for matches with same learner, teacher, and id
+      MatchModel.findOne({
+        topic: req.body.topic,
+        learner:
+          req.body.mode.toLowerCase() == "learn"
+            ? requestingUser._id
+            : matchUser._id,
+        teacher:
+          req.body.mode.toLowerCase() == "teach"
+            ? requestingUser._id
+            : matchUser._id,
+        success: { $type: 10 } // explicitly null
+      }).then(result => {
+        if (result) {
+          res.status(400).send({ message: "Match exists already" });
+          return;
+        }
+
+        // first create the match record so the email response has something to update
+        let newMatch = new MatchModel({
+          topic: req.body.topic,
+          requester: requestingUser._id,
+          // serverUrl: CONFIG.serverUrl + "connect/", //"http://192.168.1.122:8081/connect/"
+          teacher:
+            req.body.mode.toLowerCase() == "teach"
+              ? requestingUser._id
+              : matchUser._id,
+          teacherName:
+            req.body.mode.toLowerCase() == "teach"
+              ? requestingUser.username
+              : matchUser.username,
+          learner:
+            req.body.mode.toLowerCase() == "learn"
+              ? requestingUser._id
+              : matchUser._id,
+          learnerName:
+            req.body.mode.toLowerCase() == "learn"
+              ? requestingUser.username
+              : matchUser.username,
+          success: null
         });
+
+        requestingUser.pending.push(newMatch);
+        requestingUser.save();
+
+        newMatch.save().then(result => {
+          // we should have everybody here. Now craft the email
+
+          const email = new Email({
+            message: {
+              from: "hello@knowledgeincommon.com"
+            },
+            send: sendEmails,
+            transport: transporter
+          });
+          email
+            .send({
+              template: "matchRequest",
+              message: {
+                to: "emilywcharles@gmail.com"
+              },
+              locals: {
+                name: matchUser.username ? matchUser.username : " there",
+                matchId: result._id,
+                requesterName: requestingUser.username
+                  ? requestingUser.username
+                  : "A Knowledge in Common user",
+                mode: req.body.mode.toLowerCase(),
+                oppMode:
+                  req.body.mode.toLowerCase() == "learn" ? "teach" : "learn",
+                topic: req.body.topic,
+                wantToKnow: req.body.wantToKnow,
+                skillLevel: req.body.skillLevel,
+                anythingElse: req.body.anythingElse,
+                backgroundPhrase:
+                  req.body.mode.toLowerCase() == "teach"
+                    ? " their background in "
+                    : " what they want to know about "
+              }
+            })
+            .then(result => {
+              res.send(result);
+            })
+            .catch(err => {
+              console.log(err);
+            });
+        });
+      });
     })
+
     .catch(err => {
       console.log(err);
     });
 };
 
 confirmMatch = (req, res) => {
-  console.log(req.body.matchId);
   MatchModel.findOneAndUpdate({ _id: req.body.matchId }, { success: true })
     .then(matchResult => {
-      console.log(matchResult);
-      // TODO: send connection email to both requester and target connecting them
-
       let requestingUser;
       let targetUser;
       var transporter = nodemailer.createTransport(smtpConfig);
       let mode;
-
+      console.log(req.body.matchId);
       UserModel.findOne({ _id: matchResult.requester }).then(reqUserResult => {
         requestingUser = reqUserResult;
-        console.log(requestingUser);
+
         let targetUserId;
         if (req.body.requester === req.body.learner) {
           // the target is the teacher
@@ -200,6 +259,15 @@ confirmMatch = (req, res) => {
           targetUserId = req.body.learner;
           mode = "TEACH";
         }
+
+        // remove this match from the requester's "pending" list
+        requestingUser.pending = requestingUser.pending.filter(match => {
+          console.log(match);
+          return match._id != req.body.matchId;
+        });
+
+        requestingUser.save();
+
         UserModel.findOne({ _id: targetUserId }).then(targetUserResult => {
           targetUser = targetUserResult;
 
@@ -281,6 +349,11 @@ denyMatch = (req, res) => {
     .then(matchResult => {
       UserModel.findOne({ _id: matchResult.requester })
         .then(requesterResult => {
+          // remove this match from the requester's "pending" list
+          requesterResult.pending = requesterResult.pending.filter(match => {
+            return match._id != req.body.matchId;
+          });
+
           var transporter = nodemailer.createTransport(smtpConfig);
           const email = new Email({
             message: {

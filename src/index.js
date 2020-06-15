@@ -108,6 +108,16 @@ app.get(
   passport.authenticate("jwt", { session: false }),
   getUserProfile
 );
+app.get(
+  "/user/:userId/pending",
+  passport.authenticate("jwt", { session: false }),
+  getPendingMatches
+);
+app.get(
+  "/user/:userId/matches",
+  passport.authenticate("jwt", { session: false }),
+  patchUserProfile
+);
 app.patch(
   "/user/:userId",
   passport.authenticate("jwt", { session: false }),
@@ -115,9 +125,16 @@ app.patch(
 );
 app.post("/user/topics", userRoutes.addUserTopics);
 
-// TODO add authentication on /connect and /connect/request
-app.post("/connect", connectionRoutes.getConnections);
-app.post("/connect/request", connectionRoutes.requestMatch);
+app.post(
+  "/connect",
+  passport.authenticate("jwt", { session: false }),
+  connectionRoutes.getConnections
+);
+app.post(
+  "/connect/request",
+  passport.authenticate("jwt", { session: false }),
+  connectionRoutes.requestMatch
+);
 app.post("/connect/confirm", connectionRoutes.confirmMatch);
 app.post("/connect/deny", connectionRoutes.denyMatch);
 
