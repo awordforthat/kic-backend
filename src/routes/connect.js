@@ -245,7 +245,7 @@ confirmMatch = (req, res) => {
       let targetUser;
       var transporter = nodemailer.createTransport(smtpConfig);
       let mode;
-      console.log(req.body.matchId);
+
       UserModel.findOne({ _id: matchResult.requester }).then(reqUserResult => {
         requestingUser = reqUserResult;
 
@@ -353,6 +353,8 @@ denyMatch = (req, res) => {
           requesterResult.pending = requesterResult.pending.filter(match => {
             return match._id != req.body.matchId;
           });
+
+          requesterResult.save();
 
           var transporter = nodemailer.createTransport(smtpConfig);
           const email = new Email({

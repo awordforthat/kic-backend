@@ -108,11 +108,7 @@ app.get(
   passport.authenticate("jwt", { session: false }),
   getUserProfile
 );
-app.get(
-  "/user/:userId/pending",
-  passport.authenticate("jwt", { session: false }),
-  getPendingMatches
-);
+
 app.get(
   "/user/:userId/matches",
   passport.authenticate("jwt", { session: false }),

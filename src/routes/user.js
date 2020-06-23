@@ -36,41 +36,6 @@ getUserProfile = (req, res) => {
     });
 };
 
-getPendingMatches = (req, res) => {
-  if (!req.params.userId || req.params.userId === "") {
-    res
-      .status(400)
-      .send({ message: "You must provide an id with your profile request" });
-  }
-  schemas.UserModel.findOne({ _id: req.params.userId }).then(response => {
-    if (!response) {
-      res
-        .status(404)
-        .send({ message: "User {} not found".format(req.params.userId) });
-    } else {
-      // look for documents where the requesting user is one of the teacher
-      // or learner roles, and the request has not been confirmed or denied
-      MatchModel.find({
-        $and: [
-          {
-            $or: [
-              { learner: req.params.userId },
-              { teacher: req.params.userId }
-            ]
-          },
-          { success: null }
-        ]
-      })
-        .then(result => {
-          res.send(result);
-        })
-        .catch(err => {
-          res.status(400).send({ message: "Error in looking up matches", err });
-        });
-    }
-  });
-};
-
 getMatchHistory = (req, res) => {
   if (!req.params.userId || req.params.userId === "") {
     res
@@ -332,5 +297,4 @@ exports.addDebugUsers = addDebugUsers;
 exports.addUser = addUser;
 exports.addUserTopics = addUserTopics;
 exports.patchUserProfile = patchUserProfile;
-exports.getPendingMatches = getPendingMatches;
 exports.getMatchHistory = getMatchHistory;
