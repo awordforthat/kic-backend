@@ -14,6 +14,7 @@ var bcrypt = require("bcrypt");
 var userRoutes = require("./routes/user");
 var topicRoutes = require("./routes/topic");
 var connectionRoutes = require("./routes/connect");
+var contactRoutes = require("./routes/contact");
 var schemas = require("./schemas");
 
 var ExtractJwt = passportJWT.ExtractJwt;
@@ -37,7 +38,7 @@ app.use(passport.initialize());
 
 // set up cross origin
 app.use(cors());
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header(
     "Access-Control-Allow-Headers",
@@ -52,7 +53,7 @@ mongoose.connect(
   {
     dbName: "knowledge-in-common",
     useNewUrlParser: true,
-    useUnifiedTopology: true
+    useUnifiedTopology: true,
   }
 );
 
@@ -60,20 +61,21 @@ var jwtOptions = {};
 jwtOptions.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
 jwtOptions.secretOrKey = "tasmanianDevil";
 
-var strategy = new JwtStrategy(jwtOptions, function(jwt_payload, next) {
+var strategy = new JwtStrategy(jwtOptions, function (jwt_payload, next) {
   schemas.UserModel.findOne({ _id: jwt_payload.id })
-    .then(result => {
+    .then((result) => {
       next(null, result);
     })
-    .catch(err => {
+    .catch((err) => {
       next(null, false);
     });
 });
 passport.use(strategy);
 
-app.post("/login", function(req, res) {
+// login
+app.post("/login", function (req, res) {
   schemas.UserModel.findOne({ email: req.body.email.toLowerCase() })
-    .then(result => {
+    .then((result) => {
       if (bcrypt.compareSync(req.body.password, result.password)) {
         var payload = { id: result._id };
         var token = jwt.sign(payload, jwtOptions.secretOrKey);
@@ -83,24 +85,26 @@ app.post("/login", function(req, res) {
           username: result.username,
           email: result.email,
           id: result._id,
-          status: 200
+          status: 200,
         });
       } else {
         // passwords did not match
         res.status(401).send({ message: "login failure", status: 401 });
       }
     })
-    .catch(err => {
+    .catch((err) => {
       // user not in database
       res.status(401).send({ message: "user not in database", status: 401 });
     });
 });
 
+// topic requests
 app.put("/topic", topicRoutes.addTopic);
 app.put("/topic/batch", topicRoutes.addTopics);
 app.get("/topic", topicRoutes.getTopics);
 app.post("/topic/randomUpdate", topicRoutes.updateTopics);
 
+// user requests
 app.put("/user", userRoutes.addUser);
 app.put("/user/debug", userRoutes.addDebugUsers);
 app.get(
@@ -121,6 +125,7 @@ app.patch(
 );
 app.post("/user/topics", userRoutes.addUserTopics);
 
+// connection requests
 app.post(
   "/connect",
   passport.authenticate("jwt", { session: false }),
@@ -134,15 +139,18 @@ app.post(
 app.post("/connect/confirm", connectionRoutes.confirmMatch);
 app.post("/connect/deny", connectionRoutes.denyMatch);
 
+// contact
+app.post("/contact", contactRoutes.sendContactForm);
+
 // catch 404 and forward to error handler
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
   var err = new Error("Not Found");
   err.status = 404;
   next(err);
 });
 
 // error handler
-app.use(function(err, req, res, next) {
+app.use(function (err, req, res, next) {
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get("env") === "development" ? err : {};
